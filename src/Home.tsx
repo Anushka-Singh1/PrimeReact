@@ -25,7 +25,7 @@ const Home: React.FC = () => {
           title: item.title,
           place_of_origin: item.place_of_origin,
           artist_display: item.artist_display,
-          inscription: item.inscription,
+          inscriptions: item.inscriptions,
           date_start: item.date_start,
           date_end: item.date_end,
         }));
@@ -44,7 +44,7 @@ const Home: React.FC = () => {
         <Column field="title" header="Title"></Column>
         <Column field="place_of_origin" header="Place of Origin"></Column>
         <Column field="artist_display" header="Artist"></Column>
-        <Column field="inscription" header="Inscription"></Column>
+        <Column field="inscriptions" header="Inscriptions"></Column>
         <Column field="date_start" header="Start Date"></Column>
         <Column field="date_end" header="End Date"></Column>
       </DataTable>
