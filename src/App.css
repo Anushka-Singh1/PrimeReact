@@ -14,3 +14,28 @@ table tbody td {
 .datatable-row {
   padding: 10px; 
 }
+.paginator .p-paginator-pages .p-paginator-page {
+  margin: 0 0.5rem; 
+  padding: 0.5rem; 
+  border-radius: 50%;
+  background-color: #f0f0f0; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.paginator .p-paginator-pages .p-paginator-page.p-highlight {
+  background-color: #d3d3d3; 
+  color: #000; 
+  font-weight: bold; 
+}
+
+.paginator .p-paginator-pages .p-paginator-page:hover {
+  background-color: #e0e0e0; 
+  cursor: pointer; 
+}
+
+.paginator .p-paginator-pages {
+  display: flex;
+  justify-content: center; 
+}
