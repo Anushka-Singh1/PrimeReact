@@ -8,7 +8,6 @@ import { Dialog } from "primereact/dialog";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { ProgressSpinner } from "primereact/progressspinner";
-import "primeicons/primeicons.css";
 import "./App.css";
 
 interface Artwork {
@@ -68,6 +67,7 @@ const Home: React.FC = () => {
         date_start: item.date_start,
         date_end: item.date_end,
       }));
+
       applyPageSelection(p, data);
       setArtworks(data);
       setTotalRecords(response.data.pagination.total);
@@ -152,8 +152,6 @@ const Home: React.FC = () => {
             style={{ marginBottom: "0.5%", gap: "5px" }}
             onClick={() => setOverlayVisible(true)}
             label="Select Records"
-            icon="pi pi-chevron-down"
-            iconPos="right"
           />
           <DataTable value={artworks} tableStyle={{ minWidth: "100%" }}>
             <Column
