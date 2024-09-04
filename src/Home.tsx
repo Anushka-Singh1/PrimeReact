@@ -1,17 +1,22 @@
-import axios from 'axios';
-import React, { useEffect, useState } from 'react';
-import { DataTable } from 'primereact/datatable';
-import { Column } from 'primereact/column';
-import { Paginator } from 'primereact/paginator';
-import { Checkbox } from 'primereact/checkbox';
-import './App.css';
+import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { DataTable } from "primereact/datatable";
+import { Column } from "primereact/column";
+import { Paginator } from "primereact/paginator";
+import { Checkbox } from "primereact/checkbox";
+import { Dialog } from "primereact/dialog";
+import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
+import { ProgressSpinner } from "primereact/progressspinner";
+import "primeicons/primeicons.css";
+import "./App.css";
 
 interface Artwork {
   id: number;
   title: string;
   place_of_origin: string;
   artist_display: string;
-  inscription: string | null;
+  inscriptions: string | null;
   date_start: number | null;
   date_end: number | null;
 }
@@ -20,76 +25,221 @@ const Home: React.FC = () => {
   const [artworks, setArtworks] = useState<Artwork[]>([]);
   const [totalRecords, setTotalRecords] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [selectedArtworks, setSelectedArtworks] = useState<Set<number>>(new Set());
+  const [selectedArtworks, setSelectedArtworks] = useState<Set<number>>(
+    new Set()
+  );
+  const [overlayVisible, setOverlayVisible] = useState<boolean>(false);
+  const [rowsToSelect, setRowsToSelect] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(false);
   const rowsPerPage = 12;
+  const [pageRowSelection, setPageRowSelection] = useState<Map<number, number>>(
+    new Map()
+  );
+  const [selectAll, setSelectAll] = useState<boolean>(false);
 
   useEffect(() => {
-    const fetchArtworks = async (page: number) => {
-      try {
-        const response = await axios.get(`https://api.artic.edu/api/v1/artworks?page=${page}&limit=${rowsPerPage}`);
-        const data = response.data.data.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          place_of_origin: item.place_of_origin,
-          artist_display: item.artist_display,
-          inscriptions: item.inscriptions,
-          date_start: item.date_start,
-          date_end: item.date_end,
-        }));
-        setArtworks(data);
-        setTotalRecords(response.data.pagination.total);
-      } catch (error) {
-        console.error('Error fetching artworks:', error);
+    fetchArtworks();
+  }, [currentPage]);
+
+  useEffect(() => {
+    const fetchAndSetLoading = async () => {
+      if (currentPage === 1 && loading) {
+        await fetchArtworks();
+        setLoading(false);
       }
     };
 
-    fetchArtworks(currentPage);
-  }, [currentPage]);
+    fetchAndSetLoading();
+  }, [currentPage, loading]);
 
-  const onPageChange = (event: any) => {
-    setCurrentPage(event.page + 1);
+  const fetchArtworks = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(
+        `https://api.artic.edu/api/v1/artworks?page=${currentPage}&limit=${rowsPerPage}`
+      );
+      const data: Artwork[] = response.data.data.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        place_of_origin: item.place_of_origin,
+        artist_display: item.artist_display,
+        inscriptions: item.inscriptions,
+        date_start: item.date_start,
+        date_end: item.date_end,
+      }));
+      applyPageSelection(currentPage, data);
+      setArtworks(data);
+      setTotalRecords(response.data.pagination.total);
+    } catch (error) {
+      console.error("Error fetching artworks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onPageChange = (event: { page: number }) => {
+    const nextPage = event.page + 1;
+    console.log(pageRowSelection);
+    setCurrentPage(nextPage);
+  };
+
+  const applyPageSelection = (page: number, currentArtworks: Artwork[]) => {
+    const rowsToSelectOnPage = pageRowSelection.get(page) || 0;
+    const newSelectedArtworks = new Set(selectedArtworks);
+
+   
+    currentArtworks.forEach((artwork, index) => {
+      if (index < rowsToSelectOnPage) {
+        newSelectedArtworks.add(artwork.id);
+        console.log(page);
+      }
+    });
+    setSelectedArtworks(newSelectedArtworks);
+    console.log(selectedArtworks);
+    pageRowSelection.delete(page);
   };
 
   const onCheckboxChange = (id: number) => {
-    setSelectedArtworks(prev => {
-      const updated = new Set(prev);
-      if (updated.has(id)) {
-        updated.delete(id);
+    setSelectedArtworks((prevSelected) => {
+      const updatedSelected = new Set(prevSelected);
+      if (updatedSelected.has(id)) {
+        updatedSelected.delete(id);
+        
       } else {
-        updated.add(id);
+        updatedSelected.add(id); 
       }
-      return updated;
+      console.log(selectedArtworks);
+      return updatedSelected;
     });
   };
 
   const checkboxBodyTemplate = (rowData: Artwork) => {
+    const isSelected = selectedArtworks.has(rowData.id);
     return (
       <Checkbox
-        checked={selectedArtworks.has(rowData.id)}
+        checked={isSelected}
         onChange={() => onCheckboxChange(rowData.id)}
       />
     );
   };
 
+  const handleRowsToSelectChange = async () => {
+    setOverlayVisible(false);
+    setLoading(true); 
+    const newPageRowSelection = new Map<number, number>(); 
+    setSelectedArtworks(new Set()); 
+    console.log(selectedArtworks);
+    console.log(pageRowSelection);
+    let remainingRowsToSelect = rowsToSelect;
+    let page = 1;
+
+    while (remainingRowsToSelect > 0) {
+      const rowsOnThisPage = Math.min(remainingRowsToSelect, rowsPerPage);
+      newPageRowSelection.set(page, rowsOnThisPage);
+      remainingRowsToSelect -= rowsOnThisPage;
+      page++;
+      console.log(page);
+    }
+
+    setPageRowSelection(newPageRowSelection); 
+    setCurrentPage(1); 
+  };
+
+  const onSelectAllChange = () => {
+    const allSelected = !selectAll; 
+    setSelectAll(allSelected);
+
+    setSelectedArtworks((prevSelected) => {
+      const updatedSelected = new Set(prevSelected);
+      if (allSelected) {
+        artworks.forEach((artwork) => updatedSelected.add(artwork.id));
+      } else {
+        artworks.forEach((artwork) => updatedSelected.delete(artwork.id));
+      }
+      return updatedSelected;
+    });
+  };
+
+  const headerCheckboxTemplate = () => {
+    return <Checkbox checked={selectAll} onChange={onSelectAllChange} />;
+  };
+
   return (
     <div>
-      <DataTable value={artworks} tableStyle={{ minWidth: '50rem' }}>
-        <Column body={checkboxBodyTemplate} header="Select" style={{ width: '3rem' }} />
-        <Column field="title" header="Title"></Column>
-        <Column field="place_of_origin" header="Place of Origin"></Column>
-        <Column field="artist_display" header="Artist"></Column>
-        <Column field="inscriptions" header="Inscriptions"></Column>
-        <Column field="date_start" header="Start Date"></Column>
-        <Column field="date_end" header="End Date"></Column>
-      </DataTable>
-      <Paginator
-        first={(currentPage - 1) * rowsPerPage}
-        rows={rowsPerPage}
-        totalRecords={totalRecords}
-        onPageChange={onPageChange}
-        rowsPerPageOptions={[12]}
-        className="paginator"
-      />
+      {loading ? (
+        <div className="loader-container">
+          <ProgressSpinner />
+          <p>Selecting the specified records...</p>
+        </div>
+      ) : (
+        <>
+          <Button
+            style={{ marginBottom: "0.5%", gap: "5px" }}
+            onClick={() => setOverlayVisible(true)}
+            label="Select Rows"
+            icon="pi pi-chevron-down"
+            iconPos="right"
+          />
+          <DataTable value={artworks} tableStyle={{ minWidth: "100%" }}>
+            <Column
+              style={{ width: "5%" }}
+              body={checkboxBodyTemplate}
+              header=" "
+            />
+            <Column
+              style={{ width: "16%", paddingLeft: "1%" }}
+              field="title"
+              header="Title"
+            ></Column>
+            <Column
+              style={{ width: "9%", paddingLeft: "0.5%" }}
+              field="place_of_origin"
+              header="Place of Origin"
+            ></Column>
+            <Column
+              style={{ width: "30%", paddingLeft: "1%" }}
+              field="artist_display"
+              header="Artist"
+            ></Column>
+            <Column
+              style={{ width: "30%", paddingLeft: "1%" }}
+              field="inscriptions"
+              header="Inscriptions"
+            ></Column>
+            <Column
+              style={{ width: "5%" }}
+              field="date_start"
+              header="Start Date"
+            ></Column>
+            <Column
+              style={{ width: "5%" }}
+              field="date_end"
+              header="End Date"
+            ></Column>
+          </DataTable>
+          <Paginator
+            first={(currentPage - 1) * rowsPerPage}
+            rows={rowsPerPage}
+            totalRecords={totalRecords}
+            onPageChange={onPageChange}
+            className="paginator"
+          />
+          <Dialog
+            visible={overlayVisible}
+            onHide={() => setOverlayVisible(false)}
+          >
+            <div className="p-mb-3">
+              <InputText
+                type="number"
+                value={rowsToSelect.toString()} 
+                onChange={(e) => setRowsToSelect(Number(e.target.value))}
+                placeholder="Number of rows"
+              />
+            </div>
+            <Button label="Apply" onClick={handleRowsToSelectChange} />
+          </Dialog>
+        </>
+      )}
     </div>
   );
 };
