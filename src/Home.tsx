@@ -35,16 +35,15 @@ const Home: React.FC = () => {
   const [pageRowSelection, setPageRowSelection] = useState<Map<number, number>>(
     new Map()
   );
-  const [selectAll, setSelectAll] = useState<boolean>(false);
 
   useEffect(() => {
-    fetchArtworks();
+    if (currentPage != 0) fetchArtworks(currentPage);
   }, [currentPage]);
 
   useEffect(() => {
     const fetchAndSetLoading = async () => {
-      if (currentPage === 1 && loading) {
-        await fetchArtworks();
+      if (currentPage === 0 && loading) {
+        await fetchArtworks(currentPage);
         setLoading(false);
       }
     };
@@ -52,11 +51,13 @@ const Home: React.FC = () => {
     fetchAndSetLoading();
   }, [currentPage, loading]);
 
-  const fetchArtworks = async () => {
+  const fetchArtworks = async (p: number) => {
+    if (p == 0) p = 1;
+    else p = currentPage;
     setLoading(true);
     try {
       const response = await axios.get(
-        `https://api.artic.edu/api/v1/artworks?page=${currentPage}&limit=${rowsPerPage}`
+        `https://api.artic.edu/api/v1/artworks?page=${p}&limit=${rowsPerPage}`
       );
       const data: Artwork[] = response.data.data.map((item: any) => ({
         id: item.id,
@@ -67,7 +68,7 @@ const Home: React.FC = () => {
         date_start: item.date_start,
         date_end: item.date_end,
       }));
-      applyPageSelection(currentPage, data);
+      applyPageSelection(p, data);
       setArtworks(data);
       setTotalRecords(response.data.pagination.total);
     } catch (error) {
@@ -79,23 +80,18 @@ const Home: React.FC = () => {
 
   const onPageChange = (event: { page: number }) => {
     const nextPage = event.page + 1;
-    console.log(pageRowSelection);
     setCurrentPage(nextPage);
   };
 
   const applyPageSelection = (page: number, currentArtworks: Artwork[]) => {
     const rowsToSelectOnPage = pageRowSelection.get(page) || 0;
     const newSelectedArtworks = new Set(selectedArtworks);
-
-   
     currentArtworks.forEach((artwork, index) => {
       if (index < rowsToSelectOnPage) {
         newSelectedArtworks.add(artwork.id);
-        console.log(page);
       }
     });
     setSelectedArtworks(newSelectedArtworks);
-    console.log(selectedArtworks);
     pageRowSelection.delete(page);
   };
 
@@ -104,11 +100,9 @@ const Home: React.FC = () => {
       const updatedSelected = new Set(prevSelected);
       if (updatedSelected.has(id)) {
         updatedSelected.delete(id);
-        
       } else {
-        updatedSelected.add(id); 
+        updatedSelected.add(id);
       }
-      console.log(selectedArtworks);
       return updatedSelected;
     });
   };
@@ -125,11 +119,9 @@ const Home: React.FC = () => {
 
   const handleRowsToSelectChange = async () => {
     setOverlayVisible(false);
-    setLoading(true); 
-    const newPageRowSelection = new Map<number, number>(); 
-    setSelectedArtworks(new Set()); 
-    console.log(selectedArtworks);
-    console.log(pageRowSelection);
+    setLoading(true);
+    const newPageRowSelection = new Map<number, number>();
+    selectedArtworks.clear();
     let remainingRowsToSelect = rowsToSelect;
     let page = 1;
 
@@ -138,45 +130,28 @@ const Home: React.FC = () => {
       newPageRowSelection.set(page, rowsOnThisPage);
       remainingRowsToSelect -= rowsOnThisPage;
       page++;
-      console.log(page);
     }
 
-    setPageRowSelection(newPageRowSelection); 
-    setCurrentPage(1); 
-  };
-
-  const onSelectAllChange = () => {
-    const allSelected = !selectAll; 
-    setSelectAll(allSelected);
-
-    setSelectedArtworks((prevSelected) => {
-      const updatedSelected = new Set(prevSelected);
-      if (allSelected) {
-        artworks.forEach((artwork) => updatedSelected.add(artwork.id));
-      } else {
-        artworks.forEach((artwork) => updatedSelected.delete(artwork.id));
-      }
-      return updatedSelected;
-    });
-  };
-
-  const headerCheckboxTemplate = () => {
-    return <Checkbox checked={selectAll} onChange={onSelectAllChange} />;
+    setPageRowSelection(newPageRowSelection);
+    setCurrentPage(0);
   };
 
   return (
     <div>
       {loading ? (
-        <div className="loader-container">
+        <div
+          style={{ marginTop: "15%", marginLeft: "40%" }}
+          className="loader-container"
+        >
           <ProgressSpinner />
-          <p>Selecting the specified records...</p>
+          <p>Loading</p>
         </div>
       ) : (
         <>
           <Button
             style={{ marginBottom: "0.5%", gap: "5px" }}
             onClick={() => setOverlayVisible(true)}
-            label="Select Rows"
+            label="Select Records"
             icon="pi pi-chevron-down"
             iconPos="right"
           />
@@ -218,22 +193,23 @@ const Home: React.FC = () => {
             ></Column>
           </DataTable>
           <Paginator
-            first={(currentPage - 1) * rowsPerPage}
+            first={currentPage != 0 ? (currentPage - 1) * rowsPerPage : 0}
             rows={rowsPerPage}
             totalRecords={totalRecords}
             onPageChange={onPageChange}
             className="paginator"
           />
           <Dialog
+            header="Select Number of Records"
             visible={overlayVisible}
             onHide={() => setOverlayVisible(false)}
           >
             <div className="p-mb-3">
               <InputText
                 type="number"
-                value={rowsToSelect.toString()} 
+                value={rowsToSelect.toString()}
                 onChange={(e) => setRowsToSelect(Number(e.target.value))}
-                placeholder="Number of rows"
+                placeholder="Number of records"
               />
             </div>
             <Button label="Apply" onClick={handleRowsToSelectChange} />
